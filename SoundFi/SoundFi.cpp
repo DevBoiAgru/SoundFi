@@ -1,7 +1,4 @@
-#include <iostream>
-#include <SFML/Audio.hpp>
-#include <cmath>
-#include <fstream>
+#include "SoundFi.h"
 
 constexpr int SAMPLE_RATE = 44100;
 constexpr double PI = 3.14159265359;
@@ -10,26 +7,15 @@ constexpr int TRUE_FREQ = 7000, FALSE_FREQ = 6800;      // Frequencies for the 1
 constexpr int START_FREQ = 7300;                        // Frequency of the beep to indicate start
 constexpr int FINISH_FREQ = 7500;                       // Frequency of the beep to indicate end
 
-
-static std::int16_t sinSample(double time, double freq, double amplitude) {
-    return amplitude * std::sin(2 * PI * freq * time / SAMPLE_RATE) * 32767; // 32767 is max value of a 16 bit int
-}
-
 int main() {
     std::vector<std::int16_t> samples;
 
     constexpr int CHUNK_SIZE = 1024;        // 1kb
 
-    std::ifstream file("path/to/file/to/encode", std::ios::binary);
+    std::ifstream file("path/to/output/file", std::ios::binary);
     std::vector<char> fbuffer(CHUNK_SIZE);
 
-    std::string encoded_data = "";
-
-    for (int i = 0; i < SAMPLE_RATE * BIT_DURATION; i++) {
-        samples.push_back(
-            sinSample(i, START_FREQ, 0.5)
-        );
-    }
+    generate_beep(samples, START_FREQ, 0.5, BIT_DURATION, SAMPLE_RATE);
 
     while (file) {
         file.read(fbuffer.data(), CHUNK_SIZE);
@@ -41,14 +27,10 @@ int main() {
             for (int j = 7; j >= 0; j--) {
                 bool bit = (fbuffer[i] >> j) & 1;                   // Extract bits sequentially
 
-                encoded_data += bit ? "1" : "0";
-
-                for (int k = 0; k < SAMPLE_RATE * BIT_DURATION; k++) {
-                    // 1 is 1500Hz and 0 is 1000Hz
-                    samples.push_back(
-                        bit ? sinSample(k, TRUE_FREQ, 0.5) : sinSample(k, FALSE_FREQ, 0.5)
-                    );
-                }
+                if (bit)
+                    generate_beep(samples, TRUE_FREQ, 0.5, BIT_DURATION, SAMPLE_RATE);
+                else
+                    generate_beep(samples, FALSE_FREQ, 0.5, BIT_DURATION, SAMPLE_RATE);
             }
         }
 
@@ -56,12 +38,7 @@ int main() {
             break;
     }
 
-    for (int i = 0; i < SAMPLE_RATE * BIT_DURATION; i++) {
-        samples.push_back(
-            sinSample(i, FINISH_FREQ, 0.5)
-        );
-    }
-
+    generate_beep(samples, FINISH_FREQ, 0.5, BIT_DURATION, SAMPLE_RATE);
 
     sf::SoundBuffer buffer;
 
@@ -80,6 +57,17 @@ int main() {
 
     buffer.saveToFile("path/to/output/file");
 	
-    std::cout << "Encoded " << encoded_data.length() << " bits\n";
     std::cout << "Finished.\n";
+}
+
+static std::int16_t sinSample(double time, double freq, double amplitude) {
+    return amplitude * std::sin(2 * PI * freq * time / SAMPLE_RATE) * 32767; // 32767 is max value of a 16 bit int
+}
+
+void generate_beep(std::vector<std::int16_t> &sample_array, float frequency, float amplitude, float length, int sample_rate) {
+    for (int i = 0; i < sample_rate * length; i++) {
+        sample_array.push_back(
+            sinSample(i, frequency, amplitude)
+        );
+    };
 }
